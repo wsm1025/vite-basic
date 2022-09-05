@@ -1,6 +1,10 @@
 {
   "name": "vite-basic",
+<<<<<<< HEAD
   "version": "0.0.3",
+=======
+  "version": "0.0.2",
+>>>>>>> 16fedc73f0f1fb2e7be21680053d516047827445
   "scripts": {
     "dev": "vite",
     "serve": "npm run dev",
