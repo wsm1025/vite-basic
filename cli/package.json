@@ -1,11 +1,11 @@
 {
   "name": "vite-basic",
   "description": "vite+vue 前端脚手架",
-  "version": "1.0.1",
+  "version": "0.0.4",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wsm1025/vite-basic.git"
+    "url": "https://github.com/wsm1025"
   },
   "bin": {
     "vite-basic": "index.js"
