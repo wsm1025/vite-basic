@@ -1,0 +1,23 @@
+# http://editorconfig.org
+root = true
+
+[*]
+# 字符集 utf-8
+charset = utf-8
+# 缩进风格：空格
+indent_style = space
+# 缩进空格数：2
+indent_size = 2
+# 换行符 lf
+# 参考 https://github.com/editorconfig/editorconfig/wiki/EditorConfig-Properties - end_of_line
+end_of_line = lf
+# 是否删除行尾的空格
+trim_trailing_whitespace = true
+# 是否在文件的最后插入一个空行
+insert_final_newline = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab
