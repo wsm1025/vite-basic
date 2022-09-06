@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      const tong = new Set();
+      const data = { text: '小垃圾', val: '厕所' };
+      const obj = new Proxy(data, {
+        get(target, key) {
+          tong.add(effect);
+          return target[key] + 'set';
+        },
+        set(target, key, newValue) {
+          target[key] = newValue;
+          tong.forEach((fn) => fn());
+          return true;
+        },
+      });
+      function effect() {
+        document.body.innerText = obj.text;
+        console.log(obj.val);
+      }
+      effect();
+      setTimeout(() => {
+        obj.text = '拖拉机';
+        obj.val = '蔡徐坤';
+      }, 1000);
+    </script>
+  </body>
+</html>
