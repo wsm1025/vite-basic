@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      const tong = new WeakMap();
+      let activeEffect;
+      function effect(fn) {
+        const effectFn = () => {
+          cleanup(effectFn);
+          activeEffect = effectFn;
+          fn();
+        };
+        effectFn.deps = [];
+        effectFn();
+      }
+      function cleanup(effectFn) {
+        for (let i = 0; i < effectFn.deps.length; i++) {
+          const deps = effectFn.deps[i];
+          console.log(deps);
+          deps.delete(effectFn);
+        }
+        effectFn.deps.length = 0;
+      }
+      function track(target, key) {
+        if (!activeEffect) return target[key];
+        let depsMap = tong.get(target);
+        if (!depsMap) {
+          tong.set(target, (depsMap = new Map()));
+        }
+        let deps = depsMap.get(key);
+        if (!deps) {
+          depsMap.set(key, (deps = new Set()));
+        }
+        deps.add(activeEffect);
+        activeEffect.deps.push(deps);
+      }
+      function trigger(target, key) {
+        const depsMap = tong.get(target);
+        if (!depsMap) return;
+        const effects = depsMap.get(key);
+        const effectsToRun = new Set(effects);
+        effectsToRun.forEach((fn) => fn());
+      }
+      const data = { text: '小垃圾', val: '厕所' };
+      const obj = new Proxy(data, {
+        get(target, key) {
+          track(target, key);
+          return target[key];
+        },
+        set(target, key, newValue) {
+          target[key] = newValue;
+          trigger(target, key);
+        },
+      });
+
+      //   effect(() => {
+      //     console.log('effect count');
+      //     document.body.innerText = obj.text;
+      //   });
+      //   setTimeout(() => {
+      //     obj.text = '拖拉机';
+      //     //   obj.noKey = 'wsm';
+      //   }, 1000);
+      effect(() => {
+        console.log(1);
+        document.body.innerText = obj.text == '小垃圾' ? obj.val : '大垃圾';
+      });
+      //   setTimeout(() => {
+      //     // obj.text = '拖拉机';
+      //     document.body.innerText = obj.noKey;
+      //   }, 2000);
+    </script>
+  </body>
+</html>
