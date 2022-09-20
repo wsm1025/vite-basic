@@ -82,33 +82,7 @@
         });
       }
 
-      function computed(getter) {
-        let value;
-        let dirty = true;
-        const effectFn = effect(getter, {
-          lazy: true,
-          scheduler() {
-            if (!dirty) {
-              dirty = true;
-              trigger(obj, 'value');
-            }
-          },
-        });
-        const obj = {
-          get value() {
-            console.log(dirty);
-            if (dirty) {
-              value = effectFn();
-              dirty = false;
-            }
-            track(obj, 'value');
-            return value;
-          },
-        };
-        return obj;
-      }
-
-      const data = { foo: false, bar: 7, f: [1, 2] };
+      const data = { foo: 1, bar: 7, d: { i: 10 } };
       const obj = new Proxy(data, {
         get(target, key) {
           track(target, key);
@@ -119,19 +93,40 @@
           trigger(target, key);
         },
       });
-      const sumRes = computed(() => obj.f.at(-1) + obj.bar);
-      const sumRes1 = computed(() => obj.foo + obj.bar);
+      // function watch(source, cb) {
+      //   effect(() => source.foo, {
+      //     scheduler() {
+      //       cb();
+      //     },
+      //   });
+      // }
+      // watch(obj, () => {
+      //   console.log('数据变化');
+      // });
+      // obj.foo++;
+      function watch(source, cb) {
+        effect(() => traverse(source), {
+          scheduler() {
+            cb();
+          },
+        });
+      }
 
-      effect(() => {
-        // console.log(sumRes.value);
-        console.log(sumRes1.value);
+      function traverse(value, seen = new Set()) {
+        if (typeof value !== 'object' || value === null || seen.has(value)) return;
+        seen.add(value);
+        for (const k in value) {
+          // value[k]++;
+          traverse(value[k], seen);
+        }
+        return value;
+      }
+      watch(obj, () => {
+        console.log('数据变化');
       });
-      obj.f[1]++;
-      obj.f[1]++;
-
-      obj.f[1]++;
-      obj.foo++;
-      obj.foo++;
+      obj.d.i++;
+      // obj.foo++;
+      console.log(obj.d.i);
     </script>
   </body>
 </html>
