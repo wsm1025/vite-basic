@@ -50,7 +50,7 @@
         effectFn.deps.length = 0;
       }
       function track(target, key) {
-        if (!activeEffect) return target[key];
+        if (!activeEffect) return;
         let depsMap = tong.get(target);
         if (!depsMap) {
           tong.set(target, (depsMap = new Map()));
