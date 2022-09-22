@@ -104,12 +104,35 @@
       //   console.log('数据变化');
       // });
       // obj.foo++;
-      function watch(source, cb) {
-        effect(() => traverse(source), {
-          scheduler() {
-            cb();
+      function watch(source, cb, options = {}) {
+        let getters;
+        if (typeof source === 'function') {
+          getters = source;
+        } else {
+          getters = () => traverse(source);
+        }
+        let oldValue, newValue;
+        const job = () => {
+          newValue = effectFn();
+          cb(newValue, oldValue);
+          oldValue = newValue;
+        };
+        const effectFn = effect(() => getters(), {
+          lazy: true,
+          scheduler: () => {
+            if (options.flush === 'post') {
+              const p = Promise.resolve();
+              p.then(job);
+            } else {
+              job();
+            }
           },
         });
+        if (options.immediate) {
+          job();
+        } else {
+          oldValue = effectFn();
+        }
       }
 
       function traverse(value, seen = new Set()) {
@@ -121,12 +144,17 @@
         }
         return value;
       }
-      watch(obj, () => {
-        console.log('数据变化');
-      });
-      obj.d.i++;
-      // obj.foo++;
-      console.log(obj.d.i);
+      watch(
+        () => obj.foo,
+        (newValue, oldValue) => {
+          console.log('数据变化', oldValue, '=>', newValue);
+        },
+        {
+          immediate: true,
+          flush: 'post',
+        }
+      );
+      obj.foo++;
     </script>
   </body>
 </html>
