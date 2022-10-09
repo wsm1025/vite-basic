@@ -112,9 +112,14 @@
           getters = () => traverse(source);
         }
         let oldValue, newValue;
+        let cleanup;
+        function onInvalidate(fn) {
+          cleanup = fn;
+        }
         const job = () => {
           newValue = effectFn();
-          cb(newValue, oldValue);
+          cleanup && cleanup();
+          cb(newValue, oldValue, onInvalidate);
           oldValue = newValue;
         };
         const effectFn = effect(() => getters(), {
@@ -144,17 +149,34 @@
         }
         return value;
       }
-      watch(
-        () => obj.foo,
-        (newValue, oldValue) => {
-          console.log('数据变化', oldValue, '=>', newValue);
-        },
-        {
-          immediate: true,
-          // flush: 'post',
+      // watch(
+      //   () => obj.foo,
+      //   (newValue, oldValue) => {
+      //     console.log('数据变化', oldValue, '=>', newValue);
+      //   },
+      //   {
+      //     immediate: true,
+      //     // flush: 'post',
+      //   }
+      // );
+      // obj.foo++;
+      let finalData;
+      watch(obj, async (newValue, oldValue, onInvalidate) => {
+        let expired = false;
+        onInvalidate(() => {
+          expired = true;
+        });
+        const res = await fetch('https://v1.hitokoto.cn/');
+        console.log(res);
+        if (!expired) {
+          finalData = res;
         }
-      );
+        console.log(finalData);
+      });
       obj.foo++;
+      setTimeout(() => {
+        obj.foo++;
+      }, 200);
     </script>
   </body>
 </html>
