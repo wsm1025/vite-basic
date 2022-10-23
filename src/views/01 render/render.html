@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script type="module">
+      import utils, { registerErrorHandler } from './handleError.js';
+      function moutedElement(obj, root) {
+        const el = document.createElement(obj.tag);
+        // 处理props
+        for (const key in obj.props) {
+          if (/^on/.test(key)) {
+            el.addEventListener(key.substring(2).toLocaleLowerCase(), obj.props[key]);
+          }
+        }
+        if (typeof obj.children === 'string') {
+          const text = document.createTextNode(obj.children);
+          el.appendChild(text);
+        } else if (Array.isArray(obj.children)) {
+          obj.children.forEach((element) => {
+            Render(element, el);
+          });
+        }
+        root.appendChild(el);
+      }
+      function moutedComponents(vnode, root) {
+        const components = vnode.tag.render && vnode.tag.render();
+        components && Render(components, root);
+      }
+      const Render = (vnode, container) => {
+        if (typeof vnode.tag === 'string') {
+          moutedElement(vnode, container);
+        } else if (typeof vnode.tag === 'object') {
+          moutedComponents(vnode, container);
+        }
+      };
+      const componentA = {
+        render() {
+          return {
+            tag: 'div',
+            props: {
+              onClick: () => console.log('我是div'),
+            },
+            children: '玛莎拉蒂',
+          };
+        },
+      };
+      const tag = {
+        tag: 'p',
+        children: [
+          {
+            tag: 'span',
+            children: '我是span',
+            props: {
+              onClick: () => alert('小垃圾'),
+            },
+          },
+          {
+            tag: 'p',
+            children: [
+              {
+                tag: 'span',
+                children: '嵌套span',
+                props: {
+                  // onMousemove: () => console.log(1),
+                },
+              },
+              {
+                tag: componentA,
+              },
+            ],
+          },
+        ],
+      };
+      registerErrorHandler((e) => {
+        console.warn(e);
+      });
+
+      utils(() => {
+        Render(tag, document.body);
+      });
+
+      // h 函数
+      //   const ac = () =>
+      // h(
+      //   'span',
+      //   {
+      //     onClick: http,
+      //   },
+      //   'laji'
+      // );
+      // 模板使用 <ac/>
+    </script>
+  </body>
+</html>
