@@ -71,8 +71,14 @@
             }
           }
           for (const key in oldProps) {
-            if (!(key in newProps)) {
-              patchProps(el, key, oldProps[key], null);
+            if (newProps) {
+              // 更新节点有props再执行更新props操作
+              if (!(key in newProps)) {
+                patchProps(el, key, oldProps[key], null);
+              }
+            } else {
+              // 更新节点无props
+              patchProps(el, key, newProps, null);
             }
           }
           patchChildren(n1, n2, el);
@@ -211,7 +217,13 @@
               el.removeEventListener(name, invoker);
             }
           } else if (key === 'class') {
-            el.className = nextValue || '';
+            // 有值再去设置
+            if (nextValue) {
+              el.className = nextValue;
+            } else {
+              // 删除已设置的className
+              el.removeAttribute('class');
+            }
           } else if (shouldSetAsProps(el, key, nextValue)) {
             const type = typeof el[key];
             if (type === 'boolean' && nextValue === '') {
@@ -220,12 +232,28 @@
               el[key] = nextValue;
             }
           } else {
-            el.setAttribute(key, nextValue);
+            if (nextValue) {
+              el.setAttribute(key, nextValue);
+            } else {
+              // 删除已设置的className
+              el.removeAttribute(key);
+            }
           }
         },
       });
       const vnode = {
         type: 'div',
+        props: {
+          class: normalizeClass([
+            'a b',
+            {
+              c: false,
+            },
+          ]),
+          onclick: () => {
+            alert(10);
+          },
+        },
         children: [
           {
             type: 'li',
@@ -245,6 +273,9 @@
       renderer.render(vnode, document.querySelector('#app'));
       const vnode1 = {
         type: 'div',
+        props: {
+          'data-a': 10,
+        },
         children: [
           {
             type: 'li',
