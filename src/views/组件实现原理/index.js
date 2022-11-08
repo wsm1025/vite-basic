@@ -191,4 +191,13 @@ function ref(val) {
   });
   return reactive(wrapper);
 }
-export { effect, ref, reactive, shallowReactive, readonly, shallowReadOnly };
+function isRef(val) {
+  return val.__v_isRef ? true : false;
+}
+function unref(val) {
+  return isRef(val) ? val.value : val;
+}
+function $ref(val) {
+  return unref(val);
+}
+export { effect, ref, reactive, shallowReactive, readonly, shallowReadOnly, isRef, unref, $ref };
