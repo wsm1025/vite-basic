@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global.js"></script>
+    <div id="app"></div>
+
+    <script>
+      const { reactive, ref, effect, shallowReactive, shallowReadonly, shallowRef } = VueReactivity;
+      function shouldSetAsProps(el, key, value) {
+        if (key === 'form' && el.tagName === 'INPUT') return false;
+        return key in el;
+      }
+
+      function normalizeClass(targrt) {
+        return targrt.reduce((pre, next) => {
+          if (typeof next === 'string') {
+            pre += next;
+          } else {
+            for (const key in next) {
+              if (next[key]) {
+                pre = pre + ' ' + key;
+              }
+            }
+          }
+          return pre;
+        }, '');
+      }
+      function defineAsyncComponent(options) {
+        if (typeof options === 'function') {
+          options = {
+            loader: options,
+          };
+        }
+
+        const { loader } = options;
+
+        let InnerComp = null;
+
+        let retries = 0;
+        function load() {
+          return loader().catch((err) => {
+            if (options.onError) {
+              return new Promise((resolve, reject) => {
+                const retry = () => {
+                  resolve(load());
+                  retries++;
+                };
+                options.onError(retry, reject, retries);
+              });
+            } else {
+              throw error;
+            }
+          });
+        }
+
+        return {
+          name: 'AsyncComponentWrapper',
+          setup() {
+            const loaded = ref(false);
+            const error = shallowRef(null);
+            const loading = ref(false);
+
+            let loadingTimer = null;
+            if (options.delay) {
+              loadingTimer = setTimeout(() => {
+                loading.value = true;
+              }, options.delay);
+            } else {
+              loading.value = true;
+            }
+
+            load()
+              .then((c) => {
+                InnerComp = c;
+                loaded.value = true;
+              })
+              .catch((err) => {
+                console.log(err);
+                error.value = err;
+              })
+              .finally(() => {
+                loading.value = false;
+                clearTimeout(loadingTimer);
+              });
+
+            let timer = null;
+            if (options.timeout) {
+              timer = setTimeout(() => {
+                const err = new Error(`Async component timed out after ${options.timeout}ms.`);
+                error.value = err;
+              }, options.timeout);
+            }
+
+            const placeholder = { type: 'p', children: '' };
+
+            return () => {
+              if (loaded.value) {
+                return { type: InnerComp };
+              } else if (error.value && options.errorComponent) {
+                return {
+                  type: options.errorComponent,
+                  props: { error: error.value },
+                };
+              } else if (loading.value && options.loadingComponent) {
+                return { type: options.loadingComponent };
+              } else {
+                return placeholder;
+              }
+            };
+          },
+        };
+      }
+
+      let currentInstance = null;
+      function setCurrentInstance(instance) {
+        currentInstance = instance;
+      }
+
+      function onMounted(fn) {
+        if (currentInstance) {
+          currentInstance.mounted.push(fn);
+        } else {
+          console.error('onMounted必须在setup函数中使用');
+        }
+      }
+
+      function unmount(vnode) {
+        if (vnode.type === Fragment) {
+          vnode.children.forEach((c) => unmount(c));
+          return;
+        } else if (typeof vnode.type === 'object') {
+          unmount(vnode.component.subTree);
+          return;
+        }
+        const parent = vnode.el.parentNode;
+        if (parent) {
+          parent.removeChild(vnode.el);
+        }
+      }
+      const queue = new Set();
+      let isFlushing = false;
+      const p = Promise.resolve();
+      function queueJob(job) {
+        queue.add(job);
+        if (!isFlushing) {
+          isFlushing = true;
+          p.then(() => {
+            try {
+              queue.forEach((job) => job());
+            } finally {
+              isFlushing = false;
+              queue.clear = 0;
+            }
+          });
+        }
+      }
+
+      const Fragment = Symbol();
+      function createRenderer(options) {
+        const { createElement, insert, setElementText, patchProps, createText, setText } = options;
+        function mountElement(vnode, container) {
+          const el = (vnode.el = createElement(vnode.type));
+          if (typeof vnode.children === 'string' || typeof vnode.children === 'number') {
+            setElementText(el, vnode.children);
+          } else if (Array.isArray(vnode.children)) {
+            vnode.children.forEach((child) => {
+              patch(null, child, el);
+            });
+          }
+          if (vnode.props) {
+            for (const key in vnode.props) {
+              patchProps(el, key, null, vnode.props[key]);
+            }
+          }
+
+          insert(el, container);
+        }
+        function hasPropsChanged(prevProps, nextProps) {
+          const nextKeys = Object.keys(nextProps);
+          if (nextKeys.length !== Object.keys(prevProps).length) {
+            return true;
+          }
+          for (let i = 0; i < nextKeys.length; i++) {
+            const key = nextKeys[i];
+            if (nextProps[key] !== prevProps[key]) return true;
+          }
+          return false;
+        }
+
+        function resolveProps(options, propsData) {
+          const props = {};
+          const attrs = {};
+          for (const key in propsData) {
+            if ((key && options && key in options) || key.startsWith('on')) {
+              props[key] = propsData[key];
+            } else {
+              attrs[key] = propsData[key];
+            }
+          }
+
+          return [props, attrs];
+        }
+        function patchComponent(n1, n2, anchor) {
+          const instance = (n2.component = n1.component);
+          const { props } = instance;
+          if (hasPropsChanged(n1.props, n2.props)) {
+            const [nextProps] = resolveProps(n2.type.props, n2.props);
+            for (const k in nextProps) {
+              props[k] = nextProps[k];
+            }
+            for (const k in props) {
+              // 没有该props 删除操作
+              if (!(k in nextProps)) delete props[k];
+            }
+          }
+        }
+        function mountComponent(vnode, container, anchor) {
+          const isFunctional = typeof vnode.type === 'function';
+          let componentsOptions = vnode.type;
+          if (isFunctional) {
+            componentsOptions = {
+              render: vnode.type,
+              props: vnode.type.props,
+            };
+          }
+          let {
+            render,
+            data,
+            setup,
+            props: propsOptions,
+            computed,
+            methods,
+            beforeCreate,
+            created,
+            beforeMount,
+            mounted,
+            beforeUpdate,
+            updated,
+          } = componentsOptions;
+          console.log(propsOptions, 'propsOptions');
+
+          beforeCreate && beforeCreate();
+          const state = data ? reactive(data()) : null;
+          const [props, attrs] = resolveProps(propsOptions, vnode.props);
+          // 插槽slot
+          const slot = vnode.children || {};
+          const instance = {
+            state,
+            isMounted: false,
+            subTree: null,
+            props: shallowReactive(props),
+            methods,
+            computed,
+            slot,
+            mounted: [],
+          };
+          // emit事件
+          function emit(event, ...payload) {
+            const eventName = `on${event[0].toUpperCase() + event.slice(1)}`;
+            const handler = instance.props[eventName];
+            if (handler) {
+              handler(...payload);
+            } else {
+              console.error('事件不存在');
+            }
+          }
+          let setupState = null;
+
+          // setup处理
+          if (setup) {
+            const setupContext = { attrs, emit, slot };
+            const prevInstance = setCurrentInstance(instance);
+            const setupResult = setup(shallowReadonly(instance.props), setupContext);
+            setCurrentInstance(prevInstance);
+            if (typeof setupResult === 'function') {
+              if (render) console.error('setup 函数返回渲染函数，render 选项将被忽略');
+              render = setupResult;
+            } else {
+              setupState = setupContext;
+            }
+          }
+
+          vnode.component = instance;
+
+          const renderContext = new Proxy(instance, {
+            get(t, k, r) {
+              const { state, props, methods, computed, slots } = t;
+              if (k === '$slots') return slots;
+              if (state && k in state) {
+                return state[k];
+              } else if (props && k in props) {
+                return props[k];
+              } else if (setupState && k in setupState) {
+                return unref(setupState[k]);
+              } else if (methods && k in methods) {
+                return methods[k];
+              } else if (computed && k in computed) {
+                return computed[k]();
+              } else {
+                console.error(`${k}`, '不存在');
+              }
+            },
+            set(t, k, v, r) {
+              const { state, props, methods } = t;
+              if (state && k in state) {
+                state[k] = v;
+              } else if (k in props) {
+                console.warn(`${k}`, 'props是只读的');
+                props[k] = v;
+              } else if (k in methods) {
+                return methods[k];
+              } else if (k in setupState && k in setupState) {
+                return setupState[k];
+              } else if (k in computed) {
+                return computed[k]();
+              } else {
+                console.error('不存在');
+              }
+            },
+          });
+
+          // created
+          created && created.call(renderContext);
+          effect(
+            () => {
+              // props 也可this获取的原理
+              const subTree = render.call(renderContext, renderContext);
+              if (!instance.isMounted) {
+                console.log('挂载了');
+                beforeMount && beforeMount.call(renderContext);
+                // 第一次挂载
+                patch(null, subTree, container, anchor);
+                instance.isMounted = true;
+                mounted && mounted.call(renderContext);
+                instance.mounted && instance.mounted.forEach((hook) => hook.call(renderContext));
+              } else {
+                beforeUpdate && beforeUpdate.call(renderContext);
+                patch(instance.subTree, subTree, container, anchor);
+                updated && updated.call(renderContext);
+              }
+              instance.subTree = subTree;
+            },
+            {
+              scheduler: queueJob,
+            }
+          );
+        }
+
+        function unmounted(vnode) {
+          if (vnode.type === Fragment) {
+            vnode.children.forEach((c) => unmount(c));
+            return;
+          } else if (typeof vnode.type === 'object') {
+            unmount(vnode.component.subTree);
+            return;
+          }
+          const parent = vnode.el.parentNode;
+          if (parent) {
+            parent.removeChild(vnode.el);
+          }
+        }
+
+        function patchElement(n1, n2) {
+          const el = (n2.el = n1.el);
+          const oldProps = n1.props;
+          const newProps = n2.props;
+
+          for (const key in newProps) {
+            if (newProps[key] !== oldProps[key]) {
+              patchProps(el, key, oldProps[key], newProps[key]);
+            }
+          }
+          for (const key in oldProps) {
+            if (newProps) {
+              // 更新节点有props再执行更新props操作
+              if (!(key in newProps)) {
+                patchProps(el, key, oldProps[key], null);
+              }
+            } else {
+              // 更新节点无props
+              patchProps(el, key, newProps, null);
+            }
+          }
+          patchChildren(n1, n2, el);
+        }
+
+        function patchChildren(n1, n2, container) {
+          if (typeof n2.children === 'string') {
+            if (Array.isArray(n1.children)) {
+              n1.children.forEach((c) => unmounted(c));
+            }
+            setElementText(container, n2.children);
+          } else if (Array.isArray(n2.children)) {
+            const oldChildren = n1.children;
+            const newChildren = n2.children;
+            const oldLen = oldChildren.length;
+            const newLen = newChildren.length;
+            const commonLength = Math.min(oldLen, newLen);
+            for (let index = 0; index < commonLength; index++) {
+              // 长度相同更新
+              patch(oldChildren[index], newChildren[index], container);
+            }
+            if (newLen > oldLen) {
+              // 新增节点打补丁
+              for (let i = commonLength; i < newLen; i++) {
+                patch(null, newChildren[i], container);
+              }
+            } else if (oldLen > newLen) {
+              // 删除节点打补丁
+              for (let i = commonLength; i < oldLen; i++) {
+                unmounted(oldChildren[i]);
+              }
+            }
+          } else {
+            if (Array.isArray(n1.children)) {
+              n1.children.forEach((c) => unmounted(c));
+              // patch(null, n2.children, container);
+            } else if (typeof n1.children === 'string') {
+              setElementText(container, '');
+            }
+          }
+        }
+
+        function patch(n1, n2, container, anchor) {
+          // 新旧 vnode类型不一致 直接将旧的vnode卸载
+          if (n1 && n1.type !== n2.type) {
+            unmounted(n1);
+            n1 = null;
+          }
+          const { type } = n2;
+          console.log(type, '=>type');
+          if (typeof type === 'string') {
+            if (!n1) {
+              mountElement(n2, container);
+            } else {
+              patchElement(n1, n2);
+            }
+          } else if (typeof type === Text) {
+            // 文本
+            if (!n1) {
+              const el = (n2.el = createText(n2.children));
+              insert(el, container);
+            }
+          } else if (type === Fragment) {
+            if (!n1) {
+              n2.children.forEach((e) => {
+                patch(null, e, container);
+              });
+            } else {
+              patchChildren(n1, n2, container);
+            }
+          } else if (typeof type === 'object' || typeof type === 'function') {
+            if (!n1) {
+              mountComponent(n2, container, anchor);
+            } else {
+              // 组件一致应该更新;
+              patchComponent(n1, n2, anchor);
+            }
+          } else {
+            const el = (n2.el = n1.el);
+            if (n2.children !== n1.children) {
+              setText(el, n2.children);
+            }
+          }
+        }
+
+        function render(vnode, container) {
+          if (vnode) {
+            console.log(container._vnode, vnode, 'container._vnode, vnodecontainer._vnode, vnode');
+            patch(container._vnode, vnode, container);
+          } else {
+            if (container._vnode) {
+              // 封装 可调用其他方法
+              unmounted(container._vnode);
+            }
+          }
+          container._vnode = vnode;
+        }
+        return {
+          render,
+        };
+      }
+
+      const renderer = createRenderer({
+        createElement(tag) {
+          return document.createElement(tag);
+        },
+        setElementText(el, text) {
+          el.textContent = text;
+        },
+        insert(el, parent, anchor = null) {
+          parent.insertBefore(el, anchor);
+        },
+        createText(text) {
+          return document.createTextNode(text);
+        },
+        setText(el, text) {
+          el.nodeValue = text;
+        },
+        patchProps(el, key, preValue, nextValue) {
+          if (/^on/.test(key)) {
+            const invokers = el._vei || (el._vei = {});
+            let invoker = invokers[key];
+            const name = key.slice(2).toLowerCase();
+            if (nextValue) {
+              if (!invoker) {
+                invoker = el._vei[key] = (e) => {
+                  console.log(e, '=>e');
+                  if (e.timeStamp < invoker.attached) return;
+                  if (Array.isArray(invoker.value)) {
+                    invoker.value.forEach((fn) => fn(e));
+                  } else {
+                    invoker.value(e);
+                  }
+                };
+                invoker.value = nextValue;
+                invoker.attached = performance.now();
+                el.addEventListener(name, invoker);
+              } else {
+                invoker.value = nextValue;
+              }
+            } else if (invoker) {
+              el.removeEventListener(name, invoker);
+            }
+          } else if (key === 'class') {
+            // 有值再去设置
+            if (nextValue) {
+              el.className = nextValue;
+            } else {
+              // 删除已设置的className
+              el.removeAttribute('class');
+            }
+          } else if (shouldSetAsProps(el, key, nextValue)) {
+            const type = typeof el[key];
+            if (type === 'boolean' && nextValue === '') {
+              el[key] = true;
+            } else {
+              el[key] = nextValue;
+            }
+          } else {
+            if (nextValue) {
+              el.setAttribute(key, nextValue);
+            } else {
+              // 删除已设置的className
+              el.removeAttribute(key);
+            }
+          }
+        },
+      });
+
+      //   function MyFuncComp(props) {
+      //     return { type: 'h1', children: props.title + props.title1 };
+      //   }
+      //   MyFuncComp.props = {
+      //     title: String,
+      //     title1: String,
+      //   };
+
+      //   const CompVNode = {
+      //     type: MyFuncComp,
+      //     props: {
+      //       title: 'A Big Title',
+      //       title1: 'A Big111 Title',
+      //     },
+      //   };
+      //   renderer.render(CompVNode, document.querySelector('#app'));
+      //   setTimeout(() => {
+      //     renderer.render(
+      //       {
+      //         type: MyFuncComp,
+      //         props: {
+      //           title: 'A Small Title',
+      //           title1: '1112222',
+      //         },
+      //       },
+      //       document.querySelector('#app')
+      //     );
+      //   }, 2000);
+      let counter = 0;
+      const MyComponent = {
+        name: 'MyComponent',
+        props: {
+          title: String,
+        },
+        setup(props, { emit, slots }) {
+          return () => {
+            return {
+              type: 'div',
+              children: [
+                {
+                  type: defineAsyncComponent({
+                    loader: () =>
+                      new Promise((r, j) => {
+                        setTimeout(() => {
+                          counter > 2 ? r(InnerComp) : j('error...');
+                        }, 2000);
+                      }),
+                    timeout: 0,
+                    errorComponent: {
+                      setup() {
+                        return () => {
+                          return { type: 'h2', children: 'Error - timeout' };
+                        };
+                      },
+                    },
+                    delay: 500,
+                    loadingComponent: {
+                      setup() {
+                        return () => {
+                          return { type: 'h2', children: 'Loading...' };
+                        };
+                      },
+                    },
+                    onError(retry, reject, retires) {
+                      counter = retires;
+                      retry();
+                    },
+                  }),
+                },
+              ],
+            };
+          };
+        },
+      };
+
+      const InnerComp = {
+        name: 'InnerComp',
+        setup() {
+          return () => ({
+            type: 'span',
+            children: 'inner',
+          });
+        },
+      };
+      const CompVNode = {
+        type: MyComponent,
+      };
+      renderer.render(CompVNode, document.querySelector('#app'));
+
+      //   function fetch() {
+      //     return new Promise((resolve, reject) => {
+      //       setTimeout(() => {
+      //         reject('err');
+      //       }, 1000);
+      //     });
+      //   }
+
+      //   function load(onError) {
+      //     const p = fetch();
+      //     return p.catch((err) => {
+      //       return new Promise((resolve, reject) => {
+      //         const retry = () => resolve(load(onError));
+      //         onError(retry, reject);
+      //       });
+      //     });
+      //   }
+
+      //   load((retry) => {
+      //     retry();
+      //     console.log(99);
+      //   }).then((res) => {
+      //     console.log(res);
+      //   });
+    </script>
+  </body>
+</html>
