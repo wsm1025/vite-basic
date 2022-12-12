@@ -4,13 +4,14 @@ import Components from 'unplugin-vue-components/vite';
 import AutoImport from 'unplugin-auto-import/vite';
 import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers';
 import { configCompressPlugin } from './compression';
-
+import myParse from './myParse';
 export function createVitePlugins(viteEnvVars, isBuild) {
   const { VITE_BUILD_COMPRESS, VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE } = viteEnvVars;
 
   const vitePlugins = [
     vue(),
-    vueJsx(),
+    // vueJsx(),
+    myParse(),
     AutoImport({
       imports: ['vue', '@vueuse/core', 'pinia', 'vue-router'],
     }),
