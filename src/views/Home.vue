@@ -10,8 +10,7 @@
     <p class="slot">插槽选择器</p>
   </img-upload>
   <div><a-button @click="http">请求</a-button></div>
-
-  <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
+  <!-- <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
     <div class="md:flex">
       <div class="md:flex-shrink-0">
         <img
@@ -31,7 +30,7 @@
         >
       </div>
     </div>
-  </div>
+  </div> -->
 </template>
 <script setup>
   import demo from '@/api/demo';

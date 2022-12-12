@@ -8,6 +8,7 @@ import 'ant-design-vue/es/notification/style';
 import Loading from './components/dialog';
 import { MyUse } from './hooks/myuse';
 import './index.css';
+import 'uno.css';
 export const app = createApp(App);
 app.config.errorHandler = (err) => {
   console.log(err);

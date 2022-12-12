@@ -19,6 +19,8 @@ export default defineComponent({
           <button onClick={() => add()}>+</button>
           {num.value}
           <button onClick={() => minus()}>-</button>
+          <p class='fbtn m-20'>前端CV工程师</p>
+          <div class='i-ic-baseline-backspace text-3xl bg-green-500 ' m='10' />
         </>
       );
     };
