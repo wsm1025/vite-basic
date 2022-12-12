@@ -28,6 +28,9 @@
       &.router-link-active {
         color: #409aff;
       }
+      :deep(.a) {
+        color: red;
+      }
     }
   }
 </style>
