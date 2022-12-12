@@ -6,7 +6,9 @@
     :headers="headers()"
     ref="upload"
     value="https://lcscoss.xytzjt.com/35578c9940f4e1c9e7119390e248cea5.png"
-  />
+  >
+    <p class="slot">插槽选择器</p>
+  </img-upload>
   <div><a-button @click="http">请求</a-button></div>
 </template>
 <script setup>

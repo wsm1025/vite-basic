@@ -16,6 +16,8 @@
         <plus-outlined />
       </div>
     </a-upload>
+    <slot></slot>
+
     <div class="tip"
       >只支持 {{ accept }} 格式，大小限制{{
         minSize >= 1 ? `${minSize}MB` : `${maxSize}M`
@@ -71,6 +73,10 @@
       type: Function,
       default: () => {},
     },
+  });
+  const color = ref('yellow');
+  const color1 = ref({
+    color: 'skyblue',
   });
   const fileList = ref([]);
   const url = ref('');
@@ -187,5 +193,12 @@
     color: rgb(0 0 0 / 65%);
     font-size: 12px;
     line-height: initial;
+  }
+  :slotted(.slot) {
+    color: red;
+  }
+  :global(div) {
+    background-color: v-bind(color);
+    color: v-bind('color1.color');
   }
 </style>
