@@ -23,7 +23,7 @@ export default function () {
           babelrc: false, //.babelrc.json
           configFile: false, //默认搜索默认babel.config.json文件
         });
-        console.log(res?.code);
+        // console.log(res?.code);
         return res?.code; //code: 编译后的代码
       }
 

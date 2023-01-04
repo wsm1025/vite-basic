@@ -77,10 +77,13 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     build: {
-      minify: false,
+      minify: 'terser',
       // target: 'es2015',
       // cssTarget: 'chrome86',
+      assetsInlineLimit: 4000,
+      cssCodeSplit: true,
       outDir: OUTPUT_DIR,
+      sourcemap: false,
       terserOptions: {
         compress: {
           keep_infinity: true,

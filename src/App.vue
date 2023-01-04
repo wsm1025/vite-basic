@@ -9,6 +9,7 @@
     <div class="nav">
       <router-link to="/">首页</router-link>
       <router-link to="/about">about</router-link>
+      <router-link to="/test">测试</router-link>
     </div>
     <router-view />
   </a-config-provider>

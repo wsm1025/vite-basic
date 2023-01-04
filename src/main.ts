@@ -1,5 +1,5 @@
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
+import { createApp, toRaw } from 'vue';
+import { createPinia, PiniaPluginContext } from 'pinia';
 import { message, notification } from 'ant-design-vue';
 import App from './App.vue';
 import router from './router';
@@ -28,9 +28,29 @@ declare module '@vue/runtime-core' {
     $loading: Lod;
   }
 }
+const setStorege = (key: string, value: any) => {
+  localStorage.setItem(key, JSON.stringify(value));
+};
+const getStorege = (key) => {
+  return localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key) as string) : {};
+};
+const piniaPlugin = (options) => {
+  return (context: PiniaPluginContext) => {
+    const { store } = context;
+    const data = getStorege(`${options?.key ?? 'tuolaji'}--${store.$id}`);
+    store.$subscribe(() => {
+      setStorege(`${options?.key ?? 'tuolaji'}--${store.$id}`, toRaw(store.$state));
+    });
+    return {
+      ...data,
+    };
+  };
+};
+const pinia = createPinia();
+// pinia.use(piniaPlugin({ key: 'wsm' }));
 app
   .use(router)
-  .use(createPinia())
+  .use(pinia)
   .provide('$message', message)
   .provide('$notification', notification)
   .mount('#app');
