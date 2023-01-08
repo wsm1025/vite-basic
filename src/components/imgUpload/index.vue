@@ -151,7 +151,7 @@
     if (info.file.status === 'done') {
       loading.value = false;
       url.value = info.file.response.data.url;
-      props.doneCallback();
+      props.doneCallback(url.value);
     }
     if (info.file.status === 'error') {
       loading.value = false;

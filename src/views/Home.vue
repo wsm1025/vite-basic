@@ -39,10 +39,8 @@
   const code = ref(null);
   const upload = ref();
   const config = ref();
-  const http = () => {
-    demo.hitoapi().then((res) => {
-      code.value = res.hitokoto;
-    });
+  const http = (url) => {
+    console.log(url);
   };
   const headers = async () => {
     let {
