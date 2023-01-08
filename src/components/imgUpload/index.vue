@@ -10,7 +10,7 @@
       :accept="accept"
       @change="handleChange"
     >
-      <img v-if="url" :src="url" alt="avatar" style="width: 80px" />
+      <img v-if="url && !loading" :src="url" alt="avatar" style="width: 80px" />
       <div v-else>
         <loading-outlined v-if="loading" />
         <plus-outlined />
